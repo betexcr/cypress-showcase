@@ -1,0 +1,58 @@
+
+# .github/workflows/cypress-ci.yml
+name: Cypress CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  cypress-run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run Cypress tests
+        run: npx cypress run
+
+      - name: Upload Cypress screenshots (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: cypress-screenshots
+          path: cypress/screenshots
+
+  deploy:
+    needs: cypress-run
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Build project
+        run: npm run build
+
+      - name: Deploy to Production
+        env:
+          DEPLOY_URL: ${{ secrets.DEPLOY_URL }}
+          API_KEY: ${{ secrets.API_KEY }}
+        run: |
+          curl -X POST "$DEPLOY_URL" -H "Authorization: Bearer $API_KEY" -d '{"status": "deploy"}'
